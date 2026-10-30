@@ -1,0 +1,7 @@
+Cell: 64x64x24; PTO layers: z=0..11
+Temperature: 10 K; 11 snapshots averaged
+Sample time: 0..1 ps
+Window: x=4..43, y=24..63
+x-z cut: y=44; color range: -3.079..3.079 e Angstrom
+Cooling protocol: 300->10 K in 10 K steps, 5 ps per temperature.
+These are diagnostic figures, not equilibrated phase results.

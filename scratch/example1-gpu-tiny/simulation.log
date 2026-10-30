@@ -1,0 +1,3 @@
+INFO:root:Structure relaxation
+INFO:root:T=300 K, NPT equilibration
+INFO:root:T=300 K, NPT sampling

@@ -1,0 +1,35 @@
+INFO:root:The number of devices is 1
+INFO:root:The configuration of the devices is (1 x 1)
+INFO:root:PTO/STO cell: 64x64x24 distributed across visible devices
+INFO:root:Cooling 300 K -> 10 K by 10 K, 5.0 ps (2500 steps) at each plateau, E = 0
+INFO:root:T=300 K, holding for 2500 steps at E = 0
+INFO:root:T=290 K, holding for 2500 steps at E = 0
+INFO:root:T=280 K, holding for 2500 steps at E = 0
+INFO:root:T=270 K, holding for 2500 steps at E = 0
+INFO:root:T=260 K, holding for 2500 steps at E = 0
+INFO:root:T=250 K, holding for 2500 steps at E = 0
+INFO:root:T=240 K, holding for 2500 steps at E = 0
+INFO:root:T=230 K, holding for 2500 steps at E = 0
+INFO:root:T=220 K, holding for 2500 steps at E = 0
+INFO:root:T=210 K, holding for 2500 steps at E = 0
+INFO:root:T=200 K, holding for 2500 steps at E = 0
+INFO:root:T=190 K, holding for 2500 steps at E = 0
+INFO:root:T=180 K, holding for 2500 steps at E = 0
+INFO:root:T=170 K, holding for 2500 steps at E = 0
+INFO:root:T=160 K, holding for 2500 steps at E = 0
+INFO:root:T=150 K, holding for 2500 steps at E = 0
+INFO:root:T=140 K, holding for 2500 steps at E = 0
+INFO:root:T=130 K, holding for 2500 steps at E = 0
+INFO:root:T=120 K, holding for 2500 steps at E = 0
+INFO:root:T=110 K, holding for 2500 steps at E = 0
+INFO:root:T=100 K, holding for 2500 steps at E = 0
+INFO:root:T=90 K, holding for 2500 steps at E = 0
+INFO:root:T=80 K, holding for 2500 steps at E = 0
+INFO:root:T=70 K, holding for 2500 steps at E = 0
+INFO:root:T=60 K, holding for 2500 steps at E = 0
+INFO:root:T=50 K, holding for 2500 steps at E = 0
+INFO:root:T=40 K, holding for 2500 steps at E = 0
+INFO:root:T=30 K, holding for 2500 steps at E = 0
+INFO:root:T=20 K, holding for 2500 steps at E = 0
+INFO:root:T=10 K, holding for 2500 steps at E = 0
+INFO:root:T=10 K, sampling 1.0 ps and dumping every 0.1 ps

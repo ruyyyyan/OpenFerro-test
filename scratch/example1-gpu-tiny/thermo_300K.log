@@ -1,0 +1,6 @@
+# Log file for OpenFerro Simulation started at: 2026-10-30 00:47:45
+# Lattice Type: SimpleCubic3D, Lattice Size: [2 2 2]
+# Lattice Vectors: [3.9477 0.     0.    ], [0.     3.9477 0.    ], [0.     0.     3.9477]
+# Current Time Step: 0
+# Step, Strain-1, Strain-2, Strain-3, Strain-4, Strain-5, Strain-6, ex_stress-1, ex_stress-2, ex_stress-3, ex_stress-4, ex_stress-5, ex_stress-6, Volume, Total_Potential_Energy, Kinetic-dipole, Kinetic-lstrain, Kinetic-gstrain, Temperature-dipole, Temperature-lstrain, Temperature-gstrain
+0, 0.008209741674363613, 0.006618485786020756, 0.006104303523898125, 0.00039546331390738487, -0.0006026011542417109, 0.00031000934541225433, 3470.1587, 5247.9624, 5724.401, -279.79382, 405.51218, -223.8694, 502.55222, -0.12523769, 0.16336541, 0.23489176, 0.060825802, 157.98146, 227.15056, 235.28479
