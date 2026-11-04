@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -102,6 +103,41 @@ EXAMPLES = [
         ),
     ),
 ]
+
+
+def test_ptosto_example_registers_coherent_two_material_elasticity():
+    script = ROOT / "examples/04.PTOSTO_superlattice/npt.py"
+    spec = importlib.util.spec_from_file_location("ptosto_example", script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    pto_config = json.loads(module.DEFAULT_PTO_CONFIG.read_text())
+    sto_config = json.loads(module.DEFAULT_STO_CONFIG.read_text())
+    system, _, _, _ = module.build_system(
+        pto_config,
+        sto_config,
+        lateral_size=4,
+        pto_layers=2,
+        sto_layers=2,
+    )
+
+    pto_elastic = np.asarray(
+        system.get_interaction_by_ID("homo_elastic_pto").get_parameters()
+    )
+    sto_elastic = np.asarray(
+        system.get_interaction_by_ID("homo_elastic_sto").get_parameters()
+    )
+    coupling = np.asarray(
+        system.get_interaction_by_ID("homo_strain_dipole").get_parameters()
+    )
+
+    np.testing.assert_allclose(pto_elastic[:3], [131.76, 52.32, 41.85])
+    np.testing.assert_allclose(sto_elastic[:3], [131.33, 36.26, 41.30])
+    np.testing.assert_array_equal(pto_elastic[3], 4 * 4 * 2)
+    np.testing.assert_array_equal(sto_elastic[3], 4 * 4 * 2)
+    np.testing.assert_allclose(pto_elastic[4], 1.0)
+    np.testing.assert_allclose(sto_elastic[4], 3.950 / 3.901)
+    assert np.all(coupling[3:] != 0.0)
 
 
 @pytest.mark.slow

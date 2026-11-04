@@ -170,11 +170,15 @@ covered by smoke tests; these short trajectories do not establish production
 sampling convergence. See the [examples index](examples/README.md) and the
 individual scripts or READMEs for run controls and output formats.
 
-The PTO/STO examples currently omit STO's homogeneous elastic contribution.
-The [deferred correction](examples/04.PTOSTO_superlattice/README.md) can affect
-equilibrium strain and domain behavior. The SrMnO3 coupled model is an
-extension of separate ferroelectric and magnetic references; its example
-documents the modeling assumptions.
+The PTO/STO examples include the homogeneous elastic and homogeneous
+strain-dipole contributions of both materials.  The shared coherent cell is
+mapped to each material's own cubic reference lattice before its parameters
+are applied.  Local acoustic displacements and their inhomogeneous elastic
+and strain-dipole terms are still absent, so these examples describe a
+spatially uniform elastic degree of freedom rather than full elastic
+relaxation.  The SrMnO3 coupled model is an extension of separate
+ferroelectric and magnetic references; its example documents the modeling
+assumptions.
 
 <p align="center">
   <img alt="PTO/STO domain snapshot" width="80%" src="docs/domain.png" />

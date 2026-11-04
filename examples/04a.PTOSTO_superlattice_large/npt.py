@@ -70,6 +70,8 @@ def build_system(
     sto = sto_config["parameters"]
     z_pto = pto["born"]["Z_star"]
     z_sto = sto["born"]["Z_star"]
+    pto_lattice_scale = lattice_constant / pto_config["lattice"]["a1"]
+    sto_lattice_scale = lattice_constant / sto_config["lattice"]["a1"]
 
     system.add_self_interaction(
         "self_onsite",
@@ -128,23 +130,36 @@ def build_system(
         ],
     )
     system.add_homo_elastic_interaction(
-        "homo_elastic", field_ID="gstrain", **pto["elastic"], n_cells=lateral_size**2 * pto_layers
+        "homo_elastic_pto",
+        field_ID="gstrain",
+        **pto["elastic"],
+        n_cells=lateral_size**2 * pto_layers,
+        lattice_scale=pto_lattice_scale,
     )
-    # The legacy model deliberately omits STO homogeneous strain coupling.
+    system.add_homo_elastic_interaction(
+        "homo_elastic_sto",
+        field_ID="gstrain",
+        **sto["elastic"],
+        n_cells=lateral_size**2 * sto_layers,
+        lattice_scale=sto_lattice_scale,
+    )
     system.add_mutual_interaction(
         "homo_strain_dipole",
         field_1_ID="gstrain",
         field_2_ID="dipole",
         energy_engine=get_homo_strain_dipole_interaction_on_AmBnLattice(
-            lattice, pto_layers, sto_layers
+            lattice,
+            pto_layers,
+            sto_layers,
+            lattice_scales=(pto_lattice_scale, sto_lattice_scale),
         ),
         parameters=[
             pto["elastic_dipole"]["B1xx"] / z_pto**2,
             pto["elastic_dipole"]["B1yy"] / z_pto**2,
             pto["elastic_dipole"]["B4yz"] / z_pto**2,
-            0.0,
-            0.0,
-            0.0,
+            sto["elastic_dipole"]["B1xx"] / z_sto**2,
+            sto["elastic_dipole"]["B1yy"] / z_sto**2,
+            sto["elastic_dipole"]["B4yz"] / z_sto**2,
         ],
     )
     system.add_dipole_dipole_interaction(

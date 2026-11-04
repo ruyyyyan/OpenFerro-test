@@ -11,6 +11,10 @@ from openferro.engine.ferroelectric import (
     short_range_1stnn_isotropic,
     short_range_2ednn_isotropic,
 )
+from openferro.engine.ferroelectric_superlatt import (
+    get_homo_strain_dipole_interaction_on_AmBnLattice,
+)
+from openferro.lattice import SimpleCubic3D
 from scientific_helpers import (
     assert_eager_jit_parity,
     assert_float32_float64_parity,
@@ -169,6 +173,24 @@ def test_homogeneous_strain_dipole_matches_explicit_matrix_and_forces():
     assert_eager_jit_parity(
         homo_strain_dipole_interaction, strain, field, parameters
     )
+
+
+def test_superlattice_homogeneous_strain_dipole_includes_lattice_mismatch():
+    lattice = SimpleCubic3D(2, 2, 4, jnp.array([3.95, 0.0, 0.0]))
+    engine = get_homo_strain_dipole_interaction_on_AmBnLattice(
+        lattice, 2, 2, lattice_scales=(1.0, 3.950 / 3.901)
+    )
+    strain = jnp.array([-0.012, -0.012, 0.025, 0.004, -0.003, 0.002])
+    dipole = jnp.asarray(_nonsymmetric_field((2, 2, 4, 3))) * 0.03
+    parameters = jnp.array([-0.756, -0.0341, -0.2648, -1.185, 0.00615, -0.1799])
+
+    assert_force_matches_finite_difference(
+        lambda value: engine(value, dipole, parameters), strain
+    )
+    assert_force_matches_finite_difference(
+        lambda value: engine(strain, value, parameters), dipole
+    )
+    assert_eager_jit_parity(engine, strain, dipole, parameters)
 
 
 def test_inhomogeneous_strain_dipole_translation_and_mutual_forces():

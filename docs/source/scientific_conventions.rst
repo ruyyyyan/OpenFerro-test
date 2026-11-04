@@ -75,10 +75,27 @@ The homogeneous elastic energy from Eq. (12) is
    + B_{12}(\eta_1\eta_2+\eta_2\eta_3+\eta_3\eta_1)
    + \frac{B_{44}}{2}\sum_{a=4}^6\eta_a^2\right].
 
-The parameter order is ``(B11, B12, B44, N)``. ``N`` is the number of
+The legacy parameter order is ``(B11, B12, B44, N)``. ``N`` is the number of
 primitive cells. ``System.add_homo_elastic_interaction(..., n_cells=N)`` can
-select this scale explicitly; omitting it preserves ``lattice.nsites``. For
-the local acoustic-displacement form of Eq. (13), the
+select this scale explicitly; omitting it preserves ``lattice.nsites``.
+
+For a coherent cubic heterostructure whose common reference lattice constant
+is :math:`a_c`, a material with bulk reference :math:`a_m` may instead use
+``lattice_scale = a_c / a_m``. The five-entry engine parameter array is then
+``(B11, B12, B44, N, lattice_scale)`` and the material-relative strain is
+
+.. math::
+
+   \eta^{(m)}_{ii} = \frac{a_c}{a_m}(1+\eta_{ii})-1,
+   \qquad
+   \eta^{(m)}_{ij} = \frac{a_c}{a_m}\eta_{ij}.
+
+The PTO/STO examples apply this mapping separately to both pure homogeneous
+elastic energies and to both materials' homogeneous strain--dipole couplings.
+It is a coherent, small-strain reference-lattice correction; it does not
+replace a local acoustic field or describe strain gradients and dislocations.
+
+For the local acoustic-displacement form of Eq. (13), the
 production coefficients are ``g11 = B11 / 4``, ``g12 = B12 / 8``, and
 ``g44 = B44 / 8``. A uniform local displacement has zero elastic energy.
 

@@ -106,6 +106,37 @@ def linearized_volume_change(global_strain, reference_volume):
     return linearized_volume(global_strain, reference_volume) - reference_volume
 
 
+def material_homogeneous_strain(global_strain, lattice_scale=1.0):
+    """Map a common-cell strain to a material's own reference lattice.
+
+    ``lattice_scale`` is ``a_common / a_material`` for cubic reference cells.
+    The common deformation has normal stretches ``1 + eta_ii`` and engineering
+    shear components ``eta_ij``.  Expressing the same deformation relative to
+    the material reference gives
+
+    ``eta_material_ii = lattice_scale * (1 + eta_ii) - 1`` and
+    ``eta_material_ij = lattice_scale * eta_ij``.
+
+    Parameters
+    ----------
+    global_strain : jnp.ndarray
+        Common-cell engineering-Voigt strain with shape ``(6,)``.
+    lattice_scale : float
+        Ratio of common to material reference lattice constant.
+
+    Returns
+    -------
+    jnp.ndarray
+        Material-relative engineering-Voigt strain with shape ``(6,)``.
+    """
+    if global_strain.shape != (6,):
+        raise ValueError("Global strain must have shape (6,).")
+    scale = jnp.asarray(lattice_scale, dtype=global_strain.dtype)
+    normal = scale * (1.0 + global_strain[:3]) - 1.0
+    shear = scale * global_strain[3:]
+    return jnp.concatenate((normal, shear))
+
+
 def homo_elastic_energy(global_strain, parameters):
     """
     Returns the homogeneous elastic energy of a strain field.
@@ -115,22 +146,29 @@ def homo_elastic_energy(global_strain, parameters):
     global_strain : jnp.ndarray
         The global strain of a supercell, shape=(6)
     parameters : jnp.ndarray
-        The parameters of the energy function
+        ``(B11, B12, B44, N)`` or
+        ``(B11, B12, B44, N, lattice_scale)``.  The optional scale is
+        ``a_common / a_material`` and accounts for coherent lattice mismatch.
     
     Returns
     -------
     jnp.ndarray
         The homogeneous elastic energy
     """
-    B11, B12, B44, N = parameters
+    if parameters.shape == (4,):
+        B11, B12, B44, N = parameters
+        lattice_scale = 1.0
+    elif parameters.shape == (5,):
+        B11, B12, B44, N, lattice_scale = parameters
+    else:
+        raise ValueError("Homogeneous elastic parameters must have length 4 or 5.")
 
-    ## get the homogeneous strain energy 
-    gs = global_strain
-    homo_elastic_energy = 0.5 * B11 * jnp.sum(gs[:3]**2)
-    homo_elastic_energy += B12 * (gs[0]*gs[1]+gs[1]*gs[2]+gs[2]*gs[0])
-    homo_elastic_energy += 0.5 * B44 * jnp.sum(gs[3:]**2)
-    homo_elastic_energy *= N
-    return homo_elastic_energy
+    # Express the common coherent deformation in the material reference cell.
+    gs = material_homogeneous_strain(global_strain, lattice_scale)
+    energy = 0.5 * B11 * jnp.sum(gs[:3]**2)
+    energy += B12 * (gs[0]*gs[1]+gs[1]*gs[2]+gs[2]*gs[0])
+    energy += 0.5 * B44 * jnp.sum(gs[3:]**2)
+    return energy * N
 
 def pV_energy(global_strain, parameters):
     """

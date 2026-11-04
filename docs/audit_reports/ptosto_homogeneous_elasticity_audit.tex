@@ -1,0 +1,465 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[left=1.8cm,right=1.8cm,top=2.0cm,bottom=1.9cm]{geometry}
+\usepackage{fontspec}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs,tabularx,array,longtable}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{fancyhdr,lastpage}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc}
+
+\XeTeXlinebreaklocale "zh"
+\XeTeXlinebreakskip=0pt plus 1pt minus 0.1pt
+\setmainfont{Microsoft YaHei}[
+  Path=/mnt/c/Windows/Fonts/,
+  UprightFont=msyh.ttc,
+  BoldFont=msyhbd.ttc
+]
+\setmonofont{DejaVu Sans Mono}
+
+\definecolor{Navy}{RGB}{25,52,88}
+\definecolor{Blue}{RGB}{36,91,151}
+\definecolor{Teal}{RGB}{24,125,125}
+\definecolor{Green}{RGB}{45,125,70}
+\definecolor{Orange}{RGB}{205,112,32}
+\definecolor{Red}{RGB}{170,48,48}
+\definecolor{Gray}{RGB}{92,102,115}
+\definecolor{Light}{RGB}{246,249,252}
+\definecolor{CodeBg}{RGB}{245,247,249}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=Blue,
+  urlcolor=Teal,
+  citecolor=Green,
+  pdftitle={PTO/STO超晶格均匀弹性研究级修正与验证报告},
+  pdfauthor={OpenFerro本地项目审计}
+}
+
+\setlength{\headheight}{22pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{Navy}\textbf{PTO/STO 均匀弹性修正审计}}
+\fancyhead[R]{\small\color{Gray}OpenFerro 本地研究版}
+\fancyfoot[L]{\small\color{Gray}生成日期：2026-11-04}
+\fancyfoot[R]{\small\color{Gray}第 \thepage\ 页 / 共 \pageref{LastPage} 页}
+\renewcommand{\headrulewidth}{0.6pt}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\setlist[itemize]{leftmargin=1.55em,itemsep=0.18em,topsep=0.25em}
+\setlist[enumerate]{leftmargin=1.75em,itemsep=0.18em,topsep=0.25em}
+
+\newtcolorbox{keybox}[1]{
+  enhanced,breakable,colback=Light,colframe=Navy,
+  title=\textbf{#1},fonttitle=\bfseries\color{white},
+  boxrule=0.8pt,arc=2mm,left=8pt,right=8pt,top=5pt,bottom=5pt
+}
+\newtcolorbox{warnbox}[1]{
+  enhanced,breakable,colback=Orange!5!white,colframe=Orange!90!black,
+  title=\textbf{#1},fonttitle=\bfseries\color{white},
+  boxrule=0.8pt,arc=2mm,left=8pt,right=8pt,top=5pt,bottom=5pt
+}
+\newtcolorbox{resultbox}[1]{
+  enhanced,breakable,colback=Green!4!white,colframe=Green,
+  title=\textbf{#1},fonttitle=\bfseries\color{white},
+  boxrule=0.8pt,arc=2mm,left=8pt,right=8pt,top=5pt,bottom=5pt
+}
+
+\lstdefinestyle{audit}{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{CodeBg},
+  frame=single,
+  rulecolor=\color{Gray!35},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  xleftmargin=4pt,xrightmargin=4pt,
+  aboveskip=0.45em,belowskip=0.45em
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE\bfseries\color{Navy}PTO/STO 超晶格均匀弹性研究级修正与验证报告}\\[0.35em]
+  {\large\bfseries\color{Blue}物理约定、代码实现、数值验证与剩余模型边界}\\[0.45em]
+  {\normalsize\color{Gray}Research-grade correction and validation of coherent homogeneous elasticity}\\[0.65em]
+  {\small
+    \textbf{项目：}OpenFerro-test\quad|\quad
+    \textbf{分支：}main\quad|\quad
+    \textbf{基准提交：}\texttt{a4ce12b}\quad|\quad
+    \textbf{日期：}2026-11-04
+  }
+\end{center}
+\vspace{-0.15em}
+\hrule height 1.1pt
+\vspace{0.75em}
+
+\begin{keybox}{报告目的与结论}
+本报告记录对 OpenFerro PTO/STO 示例中\textbf{均匀弹性模块}所做的研究级修正，以便后续检查、复现和继续开发。修正前，模型只计入 PTO 的均匀弹性能，并把 STO 的均匀应变--偶极耦合设为零；此外，共享晶格应变没有显式转换到 PTO 与 STO 各自的体相参考晶格。修正后：
+\begin{itemize}
+  \item PTO 与 STO 分别使用自身的弹性常数、应变--偶极参数和实际原胞数；
+  \item 共享相干晶格的形变先转换为材料自身参考晶格下的应变；
+  \item 两种材料共同对同一个全局应变场贡献能量和自动微分力；
+  \item 单元测试、有限差分、受约束松弛及两个示例的最小构建/运行均已验证。
+\end{itemize}
+这使模型从“只含 PTO 的均匀弹性近似”升级为“\textbf{含 PTO/STO 相干晶格失配的双材料均匀弹性模型}”。它仍不是完整的异质结构弹性模型，因为尚无局域声学位移、非均匀弹性和层分辨应变松弛。
+\end{keybox}
+
+\newpage
+{\small\tableofcontents}
+\newpage
+
+\section{修正对象与旧模型问题}
+
+\subsection{当前模拟对象}
+两个被修正的示例是：
+\begin{itemize}
+  \item \path{examples/04.PTOSTO_superlattice/npt.py}：单设备、外场驱动 PTO/STO 动力学；
+  \item \path{examples/04a.PTOSTO_superlattice_large/npt.py}：较大体系、多设备冷却计算。
+\end{itemize}
+两者都使用 PTO 的晶格常数 $a_{\rm c}=a_{\rm PTO}=3.950$~\AA\ 建立简单立方计算网格，堆垛方向为 $z$，面内初始应变固定为
+\begin{equation}
+  \eta_{xx}=\eta_{yy}=-0.012,
+\end{equation}
+因此实际面内晶格常数为
+\begin{equation}
+  a_{\parallel}=3.950(1-0.012)=3.9026~\text{\AA},
+\end{equation}
+它非常接近 STO 参数记录的参考值 $3.901$~\AA。
+
+\subsection{旧实现的三个实质问题}
+\begin{enumerate}
+  \item \textbf{遗漏 STO 均匀弹性能。}旧代码只注册一项 PTO 弹性能，且原胞数只计 PTO 层。共享全局应变受到的恢复力被低估。
+  \item \textbf{人为关闭 STO 均匀应变--偶极耦合。}STO 的 $(B_{1xx},B_{1yy},B_{4yz})$ 在示例参数中被写成 $(0,0,0)$，使 STO 极化软模不响应均匀应变。
+  \item \textbf{参考晶格混淆。}如果把同一个数值 $\eta=-1.2\%$ 同时直接代入 PTO 和 STO 的体相弹性能，就等价于宣称两种材料都相对自身体相晶格压缩 $1.2\%$。但本计算的实际晶格 $3.9026$~\AA\ 对 STO 几乎无应变。
+\end{enumerate}
+
+\begin{warnbox}{为何这不是一个“小的参数补丁”}
+该问题同时影响全局应变的平衡位置、应变恢复力、极化--应变反馈以及随后的畴和拓扑纹理稳定性。只增加一项 STO 弹性能而不处理参考晶格，会把 STO 误置于错误的预应变状态；只处理失配而仍把 STO 应变--偶极系数设为零，也是不闭合的修正。
+\end{warnbox}
+
+\section{修正后的物理约定}
+
+\subsection{工程 Voigt 应变}
+OpenFerro 的全局应变采用工程 Voigt 顺序
+\begin{equation}
+ \bm\eta=(\eta_{xx},\eta_{yy},\eta_{zz},2\eta_{yz},2\eta_{xz},2\eta_{xy}).
+\end{equation}
+共享计算晶格以 $a_{\rm c}$ 为参考。对于体相参考晶格为 $a_m$ 的立方材料 $m$，定义
+\begin{equation}
+  s_m=\frac{a_{\rm c}}{a_m}.
+\end{equation}
+同一个实际形变相对于材料 $m$ 的参考晶格表示为
+\begin{align}
+  \eta^{(m)}_{ii} &= s_m(1+\eta_{ii})-1,\qquad i=x,y,z,\\
+  \eta^{(m)}_{ij} &= s_m\eta_{ij},\qquad i\ne j.
+\end{align}
+这对应把共享形变梯度相对于材料自己的立方参考胞重新表达。当前公式适用于这里采用的立方参考晶格和工程小应变能量展开。
+
+\begin{center}
+\begin{tikzpicture}[
+  box/.style={draw=Navy,rounded corners=1.5mm,fill=Light,minimum width=4.0cm,minimum height=1.15cm,align=center},
+  arr/.style={-{Latex[length=2.5mm]},thick,draw=Blue}
+]
+\node[box] (common) {共享计算胞\\$a_{\rm c}=3.950$~\AA, $\bm\eta$};
+\node[box,below left=1.15cm and 0.35cm of common] (pto) {PTO 参考胞\\$a_{\rm PTO}=3.950$~\AA\\$s_{\rm PTO}=1$};
+\node[box,below right=1.15cm and 0.35cm of common] (sto) {STO 参考胞\\$a_{\rm STO}=3.901$~\AA\\$s_{\rm STO}=1.01256088$};
+\draw[arr] (common)--node[left,align=right]{转换为\\$\bm\eta^{(\rm PTO)}$}(pto);
+\draw[arr] (common)--node[right,align=left]{转换为\\$\bm\eta^{(\rm STO)}$}(sto);
+\end{tikzpicture}
+\end{center}
+
+\subsection{双材料均匀弹性能}
+材料 $m$ 的立方均匀弹性能写为
+\begin{equation}
+ E_{\rm elas}^{(m)}=N_m\left[
+ \frac{B_{11}^{(m)}}{2}\sum_{a=1}^{3}\left(\eta_a^{(m)}\right)^2
+ +B_{12}^{(m)}(\eta_1^{(m)}\eta_2^{(m)}+\eta_2^{(m)}\eta_3^{(m)}+\eta_3^{(m)}\eta_1^{(m)})
+ +\frac{B_{44}^{(m)}}{2}\sum_{a=4}^{6}\left(\eta_a^{(m)}\right)^2
+ \right],
+\end{equation}
+总均匀弹性能为
+\begin{equation}
+  E_{\rm elas}=E_{\rm elas}^{(\rm PTO)}+E_{\rm elas}^{(\rm STO)}.
+\end{equation}
+其中
+\begin{equation}
+  N_{\rm PTO}=L_xL_y m_{\rm PTO},\qquad
+  N_{\rm STO}=L_xL_y n_{\rm STO}.
+\end{equation}
+两项作用于同一个全局应变场，因此自动微分得到的总应变力是两种材料贡献之和。
+
+\subsection{均匀应变--偶极耦合}
+局域场在 PTO/STO 示例中存储的是物理偶极矩 $\mathbf p$（单位 $e$\AA），而参数记录中的局域软模是位移 $\mathbf u$。二者满足 $\mathbf p=Z^*\mathbf u$，所以应变--偶极参数在示例中除以 $(Z^*)^2$。
+
+对每个材料区域使用其自己的 $\bm\eta^{(m)}$ 和归一化耦合系数。界面层继续沿用原模型的算术平均参数
+\begin{equation}
+ \mathbf B_{\rm I}=\frac{\mathbf B_{\rm PTO}+\mathbf B_{\rm STO}}{2},
+\end{equation}
+但两个界面原胞面分别使用占据该面的材料参考应变。这个选择保持了原有界面参数约定，同时避免将 PTO 与 STO 的参考晶格混为一谈。
+
+\section{材料参数与来源}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{L{3.1cm}C{2.25cm}C{2.25cm}Y}
+\toprule
+\textbf{参数} & \textbf{PTO} & \textbf{STO} & \textbf{说明}\\
+\midrule
+参考晶格 $a$ (\AA) & 3.950 & 3.901 & 分别来自本地材料配置\\
+$B_{11}$ (eV/cell) & 131.76 & 131.33 & 立方弹性参数\\
+$B_{12}$ (eV/cell) & 52.32 & 36.26 & 立方弹性参数\\
+$B_{44}$ (eV/cell) & 41.85 & 41.30 & 工程剪切约定\\
+$B_{1xx}$ (eV/\AA$^2$) & $-66.37$ & $-102.09$ & 软模--应变耦合\\
+$B_{1yy}$ (eV/\AA$^2$) & $-2.99$ & 0.5299 & 软模--应变耦合\\
+$B_{4yz}$ (eV/\AA$^2$) & $-23.25$ & $-15.494$ & 剪切耦合\\
+$Z^*$ ($e$) & 9.37 & 9.28 & Born 有效电荷\\
+$\epsilon_\infty$ & 7.95 & 6.46 & 当前 Ewald 仍统一取 PTO 值\\
+\bottomrule
+\end{tabularx}
+\caption{本次修正实际读取的材料参数。}
+\end{table}
+
+材料记录及文献来源为：
+\begin{itemize}
+  \item PTO：Paul 等，\textit{Phys. Rev. B} \textbf{95}, 054111 (2017)，DOI: \href{https://doi.org/10.1103/PhysRevB.95.054111}{10.1103/PhysRevB.95.054111}，本地记录标记为 SCAN effective Hamiltonian；
+  \item STO：Nishimatsu 等，\textit{J. Phys. Soc. Jpn.} \textbf{85}, 114714 (2016)，DOI: \href{https://doi.org/10.7566/JPSJ.85.114714}{10.7566/JPSJ.85.114714}，本地记录标记为 Wu--Cohen GGA effective Hamiltonian。
+\end{itemize}
+
+用于物理偶极场的归一化耦合参数为
+\begin{align}
+ \widetilde{\mathbf B}_{\rm PTO}
+ &=(-0.75594924,-0.03405587,-0.26481573),\\
+ \widetilde{\mathbf B}_{\rm STO}
+ &=(-1.18546095,\phantom{-}0.00615316,-0.17991509).
+\end{align}
+
+\begin{warnbox}{参数一致性风险}
+PTO 与 STO 参数来自不同交换--关联泛函和不同有效哈密顿量拟合。当前修正保证了“本地参数如何被一致地使用”，但不能消除跨参数集拼接带来的系统误差。若进入定量发表阶段，应优先寻找同一理论层级的 PTO/STO 参数，或把参数集差异纳入敏感性分析。
+\end{warnbox}
+
+\section{代码实现与兼容性}
+
+\subsection{新增材料参考应变映射}
+\path{openferro/engine/elastic.py} 新增纯 JAX 函数：
+\begin{lstlisting}[style=audit,language=Python]
+def material_homogeneous_strain(global_strain, lattice_scale=1.0):
+    scale = jnp.asarray(lattice_scale, dtype=global_strain.dtype)
+    normal = scale * (1.0 + global_strain[:3]) - 1.0
+    shear = scale * global_strain[3:]
+    return jnp.concatenate((normal, shear))
+\end{lstlisting}
+\texttt{homo\_elastic\_energy} 同时接受旧的四参数数组
+\begin{equation}
+ (B_{11},B_{12},B_{44},N)
+\end{equation}
+和新的五参数数组
+\begin{equation}
+ (B_{11},B_{12},B_{44},N,s_m).
+\end{equation}
+因此旧模型仍默认 $s_m=1$，不会因为本次扩展而改变数值含义。
+
+\subsection{System API 扩展}
+\path{openferro/system.py} 的接口增加
+\begin{lstlisting}[style=audit,language=Python]
+add_homo_elastic_interaction(..., n_cells=None, lattice_scale=1.0)
+\end{lstlisting}
+并检查 \texttt{n\_cells} 为正整数、\texttt{lattice\_scale} 为正有限标量。这样每种材料可以显式指定原胞数和参考晶格比例。
+
+\subsection{超晶格应变--偶极引擎}
+\path{openferro/engine/ferroelectric_superlatt.py} 的工厂函数新增
+\begin{lstlisting}[style=audit,language=Python]
+get_homo_strain_dipole_interaction_on_AmBnLattice(
+    lattice, m, n, lattice_scales=(scale_A, scale_B)
+)
+\end{lstlisting}
+材料内部区域和两个界面面分别求和；PTO/STO 使用不同材料参考应变，界面耦合参数仍为算术平均。
+
+\subsection{两个 PTO/STO 示例的实际注册方式}
+两个示例现在都注册：
+\begin{lstlisting}[style=audit,language=Python]
+homo_elastic_pto  # PTO constants, PTO cell count, scale=1
+homo_elastic_sto  # STO constants, STO cell count, scale=3.950/3.901
+homo_strain_dipole  # nonzero PTO and STO coupling coefficients
+\end{lstlisting}
+相关文档已同步更新：根目录 \path{README.md}、示例 \path{examples/04.PTOSTO_superlattice/README.md} 和 \path{docs/source/scientific_conventions.rst}。
+
+\section{数值诊断：修正到底改变了什么}
+
+\subsection{材料相对应变}
+在示例初始共享应变
+\begin{equation}
+ \bm\eta=(-0.012,-0.012,0.051,0,0,0)
+\end{equation}
+下，PTO 与 STO 的材料相对应变分别为
+\begin{align}
+ \bm\eta^{(\rm PTO)}&=(-0.012,-0.012,0.051,0,0,0),\\
+ \bm\eta^{(\rm STO)}&=(0.00041015,0.00041015,0.06420149,0,0,0).
+\end{align}
+因此面内共享应变 $-1.2\%$ 对 PTO 是 $-1.2\%$ 压缩，而对 STO 只是约 $+0.041\%$ 拉伸。这正是参考晶格修正要恢复的物理事实。
+
+\subsection{纯均匀弹性的定量对照}
+以下诊断采用 PTO 与 STO 各 96 个原胞，只保留均匀弹性能，不含极化--应变耦合、Ewald、温度和外压。
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{L{3.8cm}C{2.7cm}C{2.7cm}Y}
+\toprule
+\textbf{诊断量} & \textbf{PTO} & \textbf{STO} & \textbf{合计/说明}\\
+\midrule
+初始 $\eta_{zz}=0.051$ 的能量 (eV) & 12.846885 & 26.169393 & 39.016278\\
+初始 $z$ 广义力 (eV) & $-524.55168$ & $-822.49029$ & $-1347.04197$\\
+修正模型纯弹性最小点的能量 (eV) & 2.763604 & 0.778641 & 3.542245\\
+旧 PTO-only 模型最优 $\eta_{zz}$ & \multicolumn{2}{c}{0.0095301} & 只反映 PTO 泊松响应\\
+修正双材料模型最优 $\eta_{zz}$ & \multicolumn{2}{c}{$-0.0016695$} & PTO 与 STO 竞争结果\\
+\bottomrule
+\end{tabularx}
+\caption{纯均匀弹性诊断。广义力为 $-\partial E/\partial\eta_{zz}$。}
+\end{table}
+
+STO 希望其材料相对 $z$ 应变接近零；因为共享参考胞采用较大的 PTO 晶格，这对应共享 $\eta_{zz}$ 接近 $3.901/3.950-1\approx-1.24\%$。PTO 在面内受压后则倾向正的面外伸长。双材料最小点位于二者之间。
+
+\begin{warnbox}{不要把 $-0.167\%$ 当作实际模拟的平衡面外应变}
+上表是用于检查弹性实现的“纯弹性解析测试”。真实 PTO/STO 轨迹还包含非零局域偶极、均匀应变--偶极耦合、长程偶极相互作用、热涨落以及可能的压力项。尤其 PTO 的铁电极化会显著推动四方伸长，因此完整模型的平衡 $\eta_{zz}$ 必须由全哈密顿量动力学或最小化重新求得。
+\end{warnbox}
+
+\section{验证方案与测试结果}
+
+\subsection{测试矩阵}
+\small
+\begin{longtable}{L{3.25cm}L{4.0cm}L{5.1cm}L{1.5cm}}
+\toprule
+\textbf{测试} & \textbf{要排除的错误} & \textbf{验收条件} & \textbf{结果}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{测试} & \textbf{要排除的错误} & \textbf{验收条件} & \textbf{结果}\\
+\midrule
+\endhead
+材料应变映射 & STO 被错误地再压缩 $1.2\%$；剪切缩放错误 & 按解析公式逐分量一致；STO 面内应变小于 $5\times10^{-4}$ & 通过\\
+原胞数线性缩放 & 漏乘/重复计算材料层数 & $E(N_1)+E(N_2)=E(N_1+N_2)$ & 通过\\
+均匀材料极限 & 将同一材料人为分层后能量改变 & 两部分同材料之和等于单块材料 & 通过\\
+自动微分--有限差分 & JAX 梯度、材料映射或参数顺序错误 & 六个应变分量的力在设定容差内一致 & 通过\\
+JIT--eager 一致性 & 闭包、静态分支或 JIT 路径改变数值 & 编译前后能量一致 & 通过\\
+应变--偶极双变量力 & 只验证应变力但偶极力错误 & 对应变和四维偶极数组分别做有限差分 & 通过\\
+受约束 $\eta_{zz}$ 松弛 & 固定面内应变时最小点/曲率错误 & 最小点梯度近零，左右扰动均升能 & 通过\\
+示例参数注册 & STO 项仍为零或层数错误 & 两套弹性项存在，STO 耦合三个分量均非零 & 通过\\
+04 最小轨迹 & 能构建但不能实际积分 & $4\times4\times(2+2)$ 零场/加场各一步完成并产生输出 & 通过\\
+04a 全力构建 & 大体系脚本接口与 04 不一致 & 最小格点构建后偶极力、应变力均为有限数 & 通过\\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\subsection{实际执行结果}
+核心命令为
+\begin{lstlisting}[style=audit]
+JAX_PLATFORMS=cpu .venv/bin/python -m pytest \
+  tests/unit_tests/test_elastic.py \
+  tests/unit_tests/test_ferroelectric.py -q
+# 20 passed
+
+JAX_PLATFORMS=cpu .venv/bin/python -m pytest \
+  tests/unit_tests/test_examples.py -q -k 'PTO_STO or ptosto'
+# 2 passed, 6 deselected
+\end{lstlisting}
+另一次兼容性检查覆盖 \path{test_system.py}、\path{test_integrator_md.py} 及相关示例，结果为 30 项通过。完整非 GPU 单元测试审计中有 204 项通过、6 项跳过；剩余 1 个失败和 7 个初始化错误均来自纳米颗粒绘图分析缺少可选依赖 \texttt{matplotlib}，与本次 PTO/STO 弹性修改无关。尝试安装该依赖时当前网络不可达。
+
+\subsection{计算环境}
+\begin{itemize}
+  \item Python 3.13.12；JAX 0.11.2；pytest 9.2.0；
+  \item 本轮使用 \texttt{JAX\_PLATFORMS=cpu}；
+  \item 当前会话无法初始化 NVML/CUPTI，因此没有完成 GPU 后端回归；
+  \item 没有运行生产尺寸、长时间统计轨迹，当前测试证明的是实现正确性和短程可执行性，不是物理收敛性。
+\end{itemize}
+
+\section{仍未解决的模型问题}
+
+\begin{enumerate}
+  \item \textbf{局域/非均匀弹性缺失。}当前只有六分量共享全局应变。所有 PTO/STO 层被迫共享同一个面外晶格伸缩，不能形成层分辨 $c(z)$、界面应变梯度或局域剪切纹理。
+  \item \textbf{无局域应变--偶极耦合。}空间变化的极化不能通过局域声学位移进一步释放弹性能。这可能改变涡旋核、畴壁和拓扑纹理的定量稳定区。
+  \item \textbf{界面参数为算术平均。}这是原模型的简单约定，不是由专门的 PTO/STO 界面第一性原理拟合得到。后续应把界面缩放因子作为不确定参数扫描。
+  \item \textbf{单一介电屏蔽。}Ewald 仍统一使用 PTO 的 $\epsilon_\infty=7.95$，没有空间依赖介电响应。
+  \item \textbf{参数集理论层级不统一。}PTO 使用 SCAN 记录，STO 使用 WC-GGA 记录。
+  \item \textbf{未显式包含 STO 氧八面体转动。}低温或强应变下 AFD 模式可能与极化和拓扑纹理耦合。
+\end{enumerate}
+
+\begin{resultbox}{本次修正允许得出的结论}
+可以说：当前 04/04a 模型已经包含 PTO 与 STO 对共享均匀应变的自洽能量与力贡献，并正确处理两种体相参考晶格的相干失配。可以用它开展“三维周期、均匀弹性参与”的初步拓扑动力学和模型消融研究。
+
+不能说：该模型已经完整描述真实 PTO/STO 超晶格的弹性场，或由此得到的平衡应变、相边界和拓扑稳定区已经具备定量预测精度。
+\end{resultbox}
+
+\section{后续研究与复查清单}
+
+\subsection{建议的下一步开发顺序}
+\begin{enumerate}
+  \item 固定当前均匀弹性版本，先做短轨迹回归和能量分项记录；
+  \item 加入材料分层的局域声学位移场、非均匀弹性与局域应变--偶极耦合；
+  \item 对“仅均匀弹性”和“完整局域弹性”做相同初态、相同尺寸、相同温度的消融对比；
+  \item 扫描界面耦合、统一介电常数和参数集差异；
+  \item 最后再开始 Lyapunov 指数、拓扑荷时间序列和多周期本征混沌计算。
+\end{enumerate}
+
+\subsection{每次更新后的最低复查项目}
+\begin{itemize}
+  \item \texttt{git diff --check} 无空白错误；
+  \item 材料失配、原胞数缩放、有限差分力、约束松弛四个测试必须继续通过；
+  \item 检查 PTO/STO 弹性能、应变--偶极能和总应变力是否分别输出有限值；
+  \item 对固定初态记录总能量及每项能量，建立数值基线；
+  \item GPU 后端可用时补做 JIT/GPU parity 和至少一条短 NVT/NVE 轨迹；
+  \item 任何材料参数更新都要记录来源、单位、参考晶格和 Born 电荷归一化。
+\end{itemize}
+
+\appendix
+\section{修改文件索引}
+\small
+\begin{tabularx}{\textwidth}{L{6.0cm}Y}
+\toprule
+\textbf{文件} & \textbf{本次作用}\\
+\midrule
+\path{openferro/engine/elastic.py} & 材料参考应变映射；四/五参数兼容的均匀弹性能\\
+\path{openferro/system.py} & \texttt{n\_cells} 与 \texttt{lattice\_scale} 公共接口及输入校验\\
+\path{openferro/engine/ferroelectric_superlatt.py} & PTO/STO 各自参考应变下的均匀应变--偶极耦合\\
+\path{examples/04.PTOSTO_superlattice/npt.py} & 双材料均匀弹性和非零 STO 耦合\\
+\path{examples/04a.PTOSTO_superlattice_large/npt.py} & 与 04 相同的研究级修正\\
+\path{tests/unit_tests/test_elastic.py} & 失配、缩放、均匀极限、有限差分和约束松弛\\
+\path{tests/unit_tests/test_ferroelectric.py} & 超晶格应变--偶极双变量有限差分和 JIT 检查\\
+\path{tests/unit_tests/test_examples.py} & 示例实际参数注册与最小轨迹测试\\
+\path{README.md} 与文档 & 删除“STO 弹性被遗漏”的旧说明，记录新约定和剩余限制\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\section{复现命令}
+在仓库 \path{OpenFerro-test} 根目录运行：
+\begin{lstlisting}[style=audit]
+# Core scientific tests
+JAX_PLATFORMS=cpu .venv/bin/python -m pytest \
+  tests/unit_tests/test_elastic.py \
+  tests/unit_tests/test_ferroelectric.py -q
+
+# PTO/STO example registration and smoke trajectory
+JAX_PLATFORMS=cpu .venv/bin/python -m pytest \
+  tests/unit_tests/test_examples.py -q -k 'PTO_STO or ptosto'
+
+# Syntax and whitespace checks
+python -m compileall -q openferro \
+  examples/04.PTOSTO_superlattice/npt.py \
+  examples/04a.PTOSTO_superlattice_large/npt.py
+git diff --check
+\end{lstlisting}
+
+\begin{warnbox}{版本记录说明}
+本报告对应基准提交 \texttt{a4ce12b} 上的本地未提交修正。后续若提交、重构或改变材料参数，应在新报告中记录新的提交哈希，并重新生成数值基线。PDF 只记录生成时状态，不能替代 Git 历史。
+\end{warnbox}
+
+\end{document}

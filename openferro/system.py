@@ -516,12 +516,14 @@ class System:
         B44,
         enable_jit=True,
         n_cells=None,
+        lattice_scale=1.0,
     ):
         """Add homogeneous elastic energy with an explicit cell-count scale.
 
         Parameters are passed to :func:`homo_elastic_energy`.  When
         ``n_cells`` is omitted, the existing ``lattice.nsites`` behavior is
-        preserved.
+        preserved. ``lattice_scale`` is ``a_common / a_material``; values
+        other than one include coherent reference-lattice mismatch.
         """
         if n_cells is None:
             n_cells = self.lattice.nsites
@@ -532,11 +534,20 @@ class System:
         ):
             raise ValueError("n_cells must be a positive integer.")
         N = float(n_cells)
+        if (
+            isinstance(lattice_scale, (bool, np.bool_))
+            or not np.isscalar(lattice_scale)
+            or not np.isfinite(lattice_scale)
+            or lattice_scale <= 0.0
+        ):
+            raise ValueError("lattice_scale must be a positive finite scalar.")
         self._add_interaction_sanity_check(ID)
         interaction = self_interaction(field_ID)
         interaction.set_energy_engine(homo_elastic_energy, enable_jit=enable_jit)
         interaction.create_force_engine(enable_jit=enable_jit)
-        interaction.set_parameters(jnp.array([B11, B12, B44, N]))
+        interaction.set_parameters(
+            jnp.array([B11, B12, B44, N, float(lattice_scale)])
+        )
         self._self_interaction_dict[ID] = interaction
         return interaction
     

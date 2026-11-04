@@ -9,20 +9,33 @@ The local field is the physical dipole moment in e Angstrom. The onsite,
 short-range, and strain-coupling parameters from
 [`PbTiO3_SCAN.json`](../../model_configs/PbTiO3_SCAN.json) and
 [`SrTiO3_WC.json`](../../model_configs/SrTiO3_WC.json) are therefore divided by
-the appropriate powers of the Born effective charge. As in the legacy example,
-STO homogeneous strain coupling is omitted and the PTO dielectric constant is
-used by Ewald.
+the appropriate powers of the Born effective charge. The Ewald term retains
+the PTO dielectric constant as a homogeneous effective screening parameter.
 
-**Deferred issue: homogeneous elasticity.** The homogeneous elastic energy
-currently uses PTO elastic constants and counts only the PTO cells. The STO
-elastic contribution is missing, both here and in
-[`04a.PTOSTO_superlattice_large`](../04a.PTOSTO_superlattice_large/npt.py).
-This underestimates the restoring force on global strain and can affect
-equilibrium strain and domain behavior. A future correction should add the STO
-homogeneous elastic energy using its elastic constants and cell count, with
-both materials acting on the shared global strain, and validate the combined
-energy and strain forces. This correction is deferred; the current Hamiltonian
-is unchanged.
+Both materials act on the same global strain field. Their homogeneous elastic
+energies use their own elastic constants and their actual numbers of cells;
+their homogeneous strain--dipole couplings are also both retained. Because the
+simulation lattice uses the PTO reference constant, a common-cell strain
+``eta`` is mapped to material ``m`` before its parameters are evaluated:
+
+```text
+eta_m,ii = (a_PTO / a_m) * (1 + eta_ii) - 1
+eta_m,ij = (a_PTO / a_m) * eta_ij
+```
+
+This implements coherent PTO/STO lattice mismatch instead of treating the
+same numerical strain as strain relative to both bulk reference lattices.
+Interface-layer strain--dipole coefficients are arithmetic averages of the
+two materials, while each interface plane uses the strain relative to the
+material occupying that plane.
+
+**Remaining elastic limitation.** The model has no local acoustic-displacement
+field, inhomogeneous elastic energy, or inhomogeneous strain--dipole coupling.
+It can relax the shared homogeneous out-of-plane strain while the epitaxial
+in-plane components are fixed, but it cannot represent layer-resolved elastic
+relaxation, strain gradients, or dislocations. These missing terms are more
+important for quantitative comparison with a real PTO/STO heterostructure than
+for a deliberately periodic first study of intrinsic nonlinear dynamics.
 
 The production calculation is large. Submit the included Perlmutter batch
 template with your project account and adjust its time limit if needed:

@@ -3,6 +3,9 @@ Functions that define a ferroelectric term in the Hamiltonian. They will be adde
 """
 # This file is part of OpenFerro.
 
+import math
+
+from openferro.engine.elastic import material_homogeneous_strain
 from openferro.engine.ferroelectric import *
 
 def get_self_energy_onsite_on_AmBnLattice(lattice, m, n):
@@ -341,7 +344,9 @@ def get_short_range_3rdnn_on_AmBnLattice(lattice, m, n):
     return energy_engine
 
 
-def get_homo_strain_dipole_interaction_on_AmBnLattice(lattice, m, n):
+def get_homo_strain_dipole_interaction_on_AmBnLattice(
+    lattice, m, n, lattice_scales=(1.0, 1.0)
+):
     """
     Returns the engine of the homogeneous strain dipole interaction for an AmBn superlattice.
 
@@ -353,6 +358,9 @@ def get_homo_strain_dipole_interaction_on_AmBnLattice(lattice, m, n):
         Size of A layer
     n : int
         Size of B layer
+    lattice_scales : tuple of float, optional
+        ``(a_common/a_A, a_common/a_B)``.  These scales express the shared
+        coherent deformation relative to each material's reference lattice.
 
     Returns
     -------
@@ -369,6 +377,14 @@ def get_homo_strain_dipole_interaction_on_AmBnLattice(lattice, m, n):
         raise ValueError("The size of the lattice along the z-axis must be equal to m+n.")
     if m==1 or n==1:
         raise ValueError("m and n should be larger than 1.")
+    if len(lattice_scales) != 2:
+        raise ValueError("lattice_scales must contain one value per material.")
+    scale_A, scale_B = (float(value) for value in lattice_scales)
+    if not all(
+        math.isfinite(value) and value > 0.0
+        for value in (scale_A, scale_B)
+    ):
+        raise ValueError("lattice_scales must be positive finite values.")
     
     def energy_engine(global_strain, dipole_field, parameters):
         """
@@ -381,11 +397,11 @@ def get_homo_strain_dipole_interaction_on_AmBnLattice(lattice, m, n):
         dipole_field : jnp.array
             Shape=(nx, ny, nz, 3), the dipole field
         parameters : jax.numpy array
-            The parameters of the energy function containing:
-            'B1xx': float, elastic constant B1xx
-            'B1yy': float, elastic constant B1yy
-            'B4yz': float, elastic constant B4yz
-            'offset': float, offset of the dipole field
+            Six coefficients in the order
+            ``(B1xx_A, B1yy_A, B4yz_A, B1xx_B, B1yy_B, B4yz_B)``.
+            Interface coefficients are arithmetic material averages. Each
+            interface plane is evaluated with the strain relative to the
+            reference lattice of the material occupying that plane.
 
         Returns
         -------
@@ -398,11 +414,16 @@ def get_homo_strain_dipole_interaction_on_AmBnLattice(lattice, m, n):
 
         field_A = dipole_field[:, :, :m-1,:] 
         field_B = dipole_field[:, :, m:-1,:] 
-        field_I = dipole_field[:, :, [m-1,-1],:] # interface
-        gs = global_strain
+        field_IA = dipole_field[:, :, [m-1],:]
+        field_IB = dipole_field[:, :, [-1],:]
+        gs_A = material_homogeneous_strain(global_strain, scale_A)
+        gs_B = material_homogeneous_strain(global_strain, scale_B)
         
         energy = 0
-        for f, p  in zip([field_A, field_B, field_I], [para_A, para_B, para_I]):
+        groups = [field_A, field_B, field_IA, field_IB]
+        group_parameters = [para_A, para_B, para_I, para_I]
+        group_strains = [gs_A, gs_B, gs_A, gs_B]
+        for f, p, gs in zip(groups, group_parameters, group_strains):
             B1xx, B1yy, B4yz = p            
             energy +=  (B1xx*gs[0] + B1yy*(gs[1]+gs[2])) * (f[...,0]**2).sum() * 0.5
             energy +=  (B1xx*gs[1] + B1yy*(gs[0]+gs[2])) * (f[...,1]**2).sum() * 0.5

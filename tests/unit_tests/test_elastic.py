@@ -10,6 +10,7 @@ from openferro.engine.elastic import (
     inhomo_elastic_energy,
     linearized_volume,
     linearized_volume_change,
+    material_homogeneous_strain,
     pV_energy,
     pV_energy_linearized,
 )
@@ -45,6 +46,75 @@ def test_homogeneous_elastic_analytic_strains():
         homo_elastic_energy(engineering_shear, parameters),
         5.0 * 0.5 * 8.0 * 0.3**2,
     )
+
+
+def test_material_homogeneous_strain_uses_its_own_reference_lattice():
+    common_strain = jnp.array([-0.012, -0.012, 0.051, 0.03, -0.02, 0.01])
+    scale = 3.950 / 3.901
+    material_strain = material_homogeneous_strain(common_strain, scale)
+
+    expected = np.concatenate(
+        (
+            scale * (1.0 + np.asarray(common_strain[:3])) - 1.0,
+            scale * np.asarray(common_strain[3:]),
+        )
+    )
+    np.testing.assert_allclose(material_strain, expected)
+    # A common-cell -1.2% strain is almost unstrained for the smaller STO
+    # reference lattice rather than another -1.2% compression.
+    assert abs(float(material_strain[0])) < 5.0e-4
+
+
+def test_coherent_elastic_energy_cell_scaling_and_uniform_material_limit():
+    strain = jnp.array([-0.012, -0.012, 0.035, 0.0, 0.0, 0.0])
+    scale = 3.950 / 3.901
+    material_a = jnp.array([12.0, 3.0, 8.0, 7.0, scale])
+    material_b = jnp.array([12.0, 3.0, 8.0, 11.0, scale])
+    combined = homo_elastic_energy(strain, material_a) + homo_elastic_energy(
+        strain, material_b
+    )
+    all_cells = homo_elastic_energy(
+        strain, jnp.array([12.0, 3.0, 8.0, 18.0, scale])
+    )
+
+    np.testing.assert_allclose(combined, all_cells)
+    np.testing.assert_allclose(
+        homo_elastic_energy(
+            strain, jnp.array([12.0, 3.0, 8.0, 14.0, scale])
+        ),
+        2.0 * homo_elastic_energy(strain, material_a),
+    )
+
+
+def test_coherent_pto_sto_elastic_force_matches_finite_difference():
+    strain = jnp.array([-0.012, -0.012, 0.035, 0.004, -0.003, 0.002])
+    pto = jnp.array([131.76, 52.32, 41.85, 96.0, 1.0])
+    sto = jnp.array([131.33, 36.26, 41.30, 96.0, 3.950 / 3.901])
+
+    def combined_energy(value):
+        return homo_elastic_energy(value, pto) + homo_elastic_energy(value, sto)
+
+    assert_force_matches_finite_difference(combined_energy, strain)
+    assert_eager_jit_parity(homo_elastic_energy, strain, sto)
+
+
+def test_coherent_pto_sto_constrained_out_of_plane_relaxation():
+    pto = jnp.array([131.76, 52.32, 41.85, 96.0, 1.0])
+    sto = jnp.array([131.33, 36.26, 41.30, 96.0, 3.950 / 3.901])
+
+    def energy_ezz(ezz):
+        strain = jnp.array([-0.012, -0.012, ezz, 0.0, 0.0, 0.0])
+        return homo_elastic_energy(strain, pto) + homo_elastic_energy(strain, sto)
+
+    initial = jnp.asarray(0.051, dtype=jnp.float64)
+    gradient = jax.grad(energy_ezz)
+    curvature = jax.grad(gradient)
+    relaxed = initial - gradient(initial) / curvature(initial)
+
+    assert abs(float(gradient(relaxed))) < 1.0e-9
+    assert float(energy_ezz(relaxed)) < float(energy_ezz(initial))
+    assert float(energy_ezz(relaxed)) < float(energy_ezz(relaxed + 0.005))
+    assert float(energy_ezz(relaxed)) < float(energy_ezz(relaxed - 0.005))
 
 
 def test_deformed_volume_and_pressure_force():
